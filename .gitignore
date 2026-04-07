@@ -1,0 +1,6 @@
+venv/
+sample_data/
+Avenue_Dataset.zip
+__pycache__/
+.DS_Store
+.env
