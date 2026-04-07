@@ -115,5 +115,3 @@ curl -X POST http://localhost:8000/describe-and-index \
 - `.jpeg`
 - `.png`
 - `.webp`
-
-# video_analytics
