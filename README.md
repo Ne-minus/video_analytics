@@ -58,6 +58,12 @@ cp .env.example .env
 - `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — доступ к S3
 - `S3_BUCKET_NAME` — bucket с изображениями
 
+## Скачивание датасета
+```bash
+wget https://www.cse.cuhk.edu.hk/leojia/projects/detectabnormal/Avenue_Dataset.zip
+python3 data_collect.py
+```
+
 ## Запуск
 
 ```bash
