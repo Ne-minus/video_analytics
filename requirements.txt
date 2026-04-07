@@ -1,0 +1,6 @@
+langchain-core
+langgraph
+langchain-gigachat
+python-dotenv
+pydantic
+elasticsearch

@@ -1,12 +1,36 @@
 # video_analytics
 
-Посматривайте в ветки recommend/...
+# Предлагаемая структура приложения (см структуру папок)
 
-Если будет время, буду подкидывать идей
+Чуть чуть набросал вам:
+- докерфайл в каждой папке
+- docker-compose.yml
 
-Создавайте обязательно для себя отдельные ветки (хотя по одной под каждого человека)
+Остальные файлы пустые
 
-Но желательно:
-- feature/что-то_там - фича, какой-то функционал
-- bugfix/что-то_там - исправление
-- refactoring/что-то_там - когда функционал не меняется, но решили что-то переделать или переписать
+Корневая папка общая
+
+В каждом собираемом в отдельный образ модуле - по отдельному dockerfile
+
+в img2vlm - ручка для загрузки картинки
+
+## Simple agent (Elastic + embeddings)
+
+Пайплайн агента:
+`user query → JSON(text_query, embedding_text, top_k) → gigachat_embeddings → ElasticSearch`.
+
+### Config
+
+- **Select backend**: `SEARCH_BACKEND=memory|elastic` (default: `memory`)
+- **Elastic**:
+  - `ELASTIC_URL` (default: `http://localhost:9200`)
+  - `ELASTIC_INDEX` (default: `images`)
+  - `ELASTIC_TEXT_FIELD` (default: `scene_description`)
+  - `ELASTIC_VECTOR_FIELD` (default: `scene_embedding`)
+
+### Run (CLI)
+
+```bash
+pip install -r requirements.txt
+python -m test_graph
+```
