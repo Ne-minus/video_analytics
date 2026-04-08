@@ -6,8 +6,8 @@ from typing import Any
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
 
-from shared.config import settings
-from shared.types import VLMOutput
+from img2vlm.shared.config import settings
+from img2vlm.shared.types import VLMOutput
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import aioboto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from shared.config import settings
+from img2vlm.shared.config import settings
 
 
 class S3StorageService:

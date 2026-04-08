@@ -3,9 +3,9 @@ import logging
 from pathlib import Path
 import uuid
 
-from integrations.kafka.client import KafkaService, guess_mime_type
-from integrations.s3.client import S3StorageService
-from shared.config import settings
+from img2vlm.integrations.kafka.client import KafkaService, guess_mime_type
+from img2vlm.integrations.s3.client import S3StorageService
+from img2vlm.shared.config import settings
 
 logger = logging.getLogger(__name__)
 

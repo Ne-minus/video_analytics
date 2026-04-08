@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from integrations.gigachat.client import VLMClient
-from integrations.kafka.client import KafkaService, generate_document_id
-from integrations.s3.client import S3StorageService
-from shared.config import settings
-from vlm_api_service.schemas import HealthResponse, IndexResponse
+from img2vlm.integrations.gigachat.client import VLMClient
+from img2vlm.integrations.kafka.client import KafkaService, generate_document_id
+from img2vlm.integrations.s3.client import S3StorageService
+from img2vlm.shared.config import settings
+from img2vlm.vlm_api_service.schemas import HealthResponse, IndexResponse
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),

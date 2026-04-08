@@ -7,9 +7,9 @@ from typing import Any
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
 
-from integrations.s3.client import S3StorageService
-from integrations.gigachat.client import VLMClient
-from shared.config import settings
+from img2vlm.integrations.s3.client import S3StorageService
+from img2vlm.integrations.gigachat.client import VLMClient
+from img2vlm.shared.config import settings
 
 logger = logging.getLogger(__name__)
 
