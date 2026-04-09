@@ -1,4 +1,4 @@
-from app.core.config import settings
+from storage.app.core.config import settings
 
 INDEX_NAME = "media_documents"
 
@@ -39,7 +39,7 @@ MAPPINGS = {
         },
         "dense_vector": {
             "type": "dense_vector",
-            "dims": 384,
+            "dims": settings.ES_VECTOR_DIMS,
             "similarity": "cosine"
         },
         "created_at": {"type": "date"},

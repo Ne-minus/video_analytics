@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas import HealthCheck
+from storage.app.schemas import HealthCheck
 
 
 health_router = APIRouter()

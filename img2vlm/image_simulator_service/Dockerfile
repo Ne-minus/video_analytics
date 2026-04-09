@@ -8,8 +8,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY shared ./shared
-COPY integrations ./integrations
-COPY image_simulator_service ./image_simulator_service
+# Put the whole package on PYTHONPATH as `img2vlm.*`
+COPY . ./img2vlm
+ENV PYTHONPATH=/app
 
-CMD ["python", "-m", "image_simulator_service.main"]
+CMD ["python", "-m", "img2vlm.image_simulator_service.main"]

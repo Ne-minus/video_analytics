@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, HTTPException
-from app.es_client import es_client, create_index_if_not_exists, delete_index, index_exists
+from storage.app.es_client import es_client, create_index_if_not_exists, delete_index, index_exists
 from functools import wraps
 
 def handle_es_errors(func):

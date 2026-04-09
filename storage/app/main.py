@@ -1,7 +1,8 @@
 from fastapi import FastAPI
-from app.es_client import es_client
+from storage.app.endpoints import elastic, health
+from storage.app.es_client import es_client
 from contextlib import asynccontextmanager
-from app.endpoints import health, elastic, media
+from storage.app.endpoints import media
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

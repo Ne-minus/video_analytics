@@ -85,17 +85,15 @@ class KafkaService:
         document_id: str,
         filename: str,
         content_type: str | None,
-        people_analysis: dict[str, Any],
         scene_description: str,
         metadata: dict[str, Any] | None,
         created_at: str | None = None,
     ) -> None:
         payload = {
+            "scene_description": scene_description,
             "document_id": document_id,
             "filename": filename,
             "content_type": content_type,
-            "people_analysis": people_analysis,
-            "scene_description": scene_description,
             "metadata": metadata or {},
             "created_at": created_at or datetime.now(timezone.utc).isoformat(),
         }
@@ -121,11 +119,6 @@ class KafkaService:
                         document_id=payload["document_id"],
                         filename=payload["filename"],
                         content_type=payload.get("content_type"),
-                        people_analysis={
-                            "people_count": analysis["people_count"],
-                            "people_present": analysis["people_present"],
-                            "people_summary": analysis["people_summary"],
-                        },
                         scene_description=analysis["scene_description"],
                         metadata=payload.get("metadata"),
                         created_at=payload.get("created_at"),

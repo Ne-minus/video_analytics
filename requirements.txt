@@ -10,4 +10,5 @@ langgraph
 langchain-gigachat
 python-dotenv
 pydantic
-elasticsearch
+elasticsearch==8.15.1
+httpx==0.28.1

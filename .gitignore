@@ -256,3 +256,9 @@ docker-compose.override.yml
 *.tmp
 *.bak
 *.orig
+
+*.zip
+*.txt
+Avenue_Dataset/
+
+img2vlm/sample_data/

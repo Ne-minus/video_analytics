@@ -1,18 +1,18 @@
 services:
-  app:
+  img2vlm-app:
     build:
-      context: .
+      context: ./img2vlm
       dockerfile: vlm_api_service/Dockerfile
-    container_name: vlm-fastapi-service
+    container_name: img2vlm-vlm-api
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       GIGACHAT_API_KEY: ${GIGACHAT_API_KEY:-}
       GIGACHAT_BASE_URL: ${GIGACHAT_BASE_URL:-https://gigachat.devices.sberbank.ru/api/v1}
       GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Max}
-      GIGACHAT_PEOPLE_PROMPT: ${GIGACHAT_PEOPLE_PROMPT:-Верни строго JSON с количеством людей на изображении.}
-      GIGACHAT_SCENE_PROMPT: ${GIGACHAT_SCENE_PROMPT:-Опиши сцену на изображении на русском языке в 5-7 предложениях.}
+      GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      GIGACHAT_SCENE_PROMPT: ${GIGACHAT_SCENE_PROMPT:-Опиши сцену на изображении в 5-7 предложениях.}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       KAFKA_INPUT_TOPIC: ${KAFKA_INPUT_TOPIC:-imgs_to_process}
       KAFKA_OUTPUT_TOPIC: ${KAFKA_OUTPUT_TOPIC:-output}
@@ -27,14 +27,16 @@ services:
       S3_REGION_NAME: ${S3_REGION_NAME:-us-east-1}
       S3_USE_SSL: ${S3_USE_SSL:-false}
     depends_on:
-      - kafka
-      - minio
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
 
   image-simulator:
     build:
-      context: .
+      context: ./img2vlm
       dockerfile: image_simulator_service/Dockerfile
-    container_name: image-simulator
+    container_name: img2vlm-image-simulator
     restart: unless-stopped
     environment:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
@@ -49,10 +51,97 @@ services:
       S3_REGION_NAME: ${S3_REGION_NAME:-us-east-1}
       S3_USE_SSL: ${S3_USE_SSL:-false}
     depends_on:
-      - kafka
-      - minio
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
     volumes:
-      - ./sample_data:/app/sample_data
+      - ./img2vlm/sample_data:/app/sample_data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: storage-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  storage:
+    image: storage-fastapi
+    container_name: storage-fastapi
+    build:
+      context: .
+      dockerfile: agent/agent.dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ES_HOST: ${ES_HOST:-http://elasticsearch:9200}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command:
+      [
+        "uvicorn",
+        "storage.app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  agent:
+    image: agent-cli
+    container_name: agent-cli
+    build:
+      context: .
+      dockerfile: agent/agent.dockerfile
+    stdin_open: true
+    tty: true
+    environment:
+      STORAGE_URL: ${STORAGE_URL:-http://storage:8000}
+      GIGACHAT_API_KEY: ${GIGACHAT_API_KEY:-}
+      GIGACHAT_BASE_URL: ${GIGACHAT_BASE_URL:-https://gigachat.devices.sberbank.ru/api/v1}
+      GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Max}
+      GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_CORP}
+    depends_on:
+      storage:
+        condition: service_healthy
+    command: ["python", "-m", "agent.app"]
+
+  indexer:
+    image: agent-cli
+    container_name: indexer
+    restart: unless-stopped
+    environment:
+      STORAGE_URL: ${STORAGE_URL:-http://storage:8000}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      KAFKA_OUTPUT_TOPIC: ${KAFKA_OUTPUT_TOPIC:-output}
+      KAFKA_OUTPUT_CONSUMER_GROUP: ${KAFKA_OUTPUT_CONSUMER_GROUP:-indexer}
+      GIGACHAT_API_KEY: ${GIGACHAT_API_KEY:-}
+      GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_CORP}
+    depends_on:
+      kafka:
+        condition: service_started
+      storage:
+        condition: service_healthy
+    command: ["python", "-m", "agent.indexer"]
 
   kafka:
     image: apache/kafka:latest
@@ -88,3 +177,4 @@ services:
 
 volumes:
   minio_data:
+  es_data:

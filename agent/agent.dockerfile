@@ -16,5 +16,6 @@ FROM builder AS runtime
 
 # Здесь копируюете нужные файлы
 COPY agent ./agent
+COPY storage ./storage
 
 CMD ["python", "-m", "agent.app"]

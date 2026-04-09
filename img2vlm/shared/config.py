@@ -10,15 +10,7 @@ class Settings(BaseSettings):
     gigachat_api_key: str = ""
     gigachat_base_url: str = "https://gigachat.devices.sberbank.ru/api/v1"
     gigachat_model: str = "GigaChat-2-Max"
-    gigachat_people_prompt: str = (
-        "Проанализируй изображение и верни строго JSON без markdown и без пояснений. "
-        "Формат ответа: "
-        '{"people_count": 0, '
-        '"people_present": false, '
-        '"people_summary": "краткое описание людей на изображении"}. '
-        "Если людей нет, укажи people_count=0, people_present=false и объясни это в people_summary. "
-        "Никаких дополнительных полей не добавляй."
-    )
+    gigachat_scope: str = "GIGACHAT_API_PERS"
     gigachat_scene_prompt: str = (
         "Опиши сцену на изображении на русском языке в 5-7 предложениях. "
         "Сделай описание подробным, но без домыслов и выдуманных деталей. "

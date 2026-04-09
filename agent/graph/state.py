@@ -10,6 +10,8 @@ class AgentState(TypedDict, total=False):
     parsed: Dict[str, Any]  # {"text_query": str, "embedding_text": str, "top_k": int}
     embedding: List[float]
 
+    user_query: str
+
     search_results: List[Dict[str, Any]]
     final_answer: str
     error: str

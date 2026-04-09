@@ -8,10 +8,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY shared ./shared
-COPY integrations ./integrations
-COPY vlm_api_service ./vlm_api_service
+# Put the whole package on PYTHONPATH as `img2vlm.*`
+COPY . ./img2vlm
+ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "vlm_api_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "img2vlm.vlm_api_service.main:app", "--host", "0.0.0.0", "--port", "8000"]

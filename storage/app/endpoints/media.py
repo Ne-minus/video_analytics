@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
-from app.models.documents import MediaDocument
-from app.crud.media import create_document, get_document, delete_document
+from storage.app.models.documents import MediaDocument
+from storage.app.crud.media import create_document, get_document, delete_document, search_documents
+from storage.app.schemas import MediaSearchRequest, MediaSearchResult
 
 media_router = APIRouter()
 
@@ -33,3 +34,9 @@ async def delete_doc(doc_id: str):
             detail=f"Document {doc_id} not found"
         )
     return None
+
+
+@media_router.post("/search", response_model=list[MediaSearchResult], status_code=status.HTTP_200_OK)
+async def search_docs(req: MediaSearchRequest):
+    """Гибридный поиск по документам (text + vector)."""
+    return await search_documents(req.model_dump())

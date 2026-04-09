@@ -2,9 +2,9 @@ import cv2
 from pathlib import Path
 
 # Папка с видео
-INPUT_DIR = Path("Avenue_Dataset")  # замени при необходимости
+INPUT_DIR = Path("C:/Users/rusin/Desktop/SBER/Security/PoC_smartview/Avenue_Dataset/Avenue Dataset/training_videos")  # замени при необходимости
 # Одна папка для всех кадров
-OUTPUT_DIR = Path("sample_data")
+OUTPUT_DIR = Path("img2vlm/sample_data")
 
 INTERVAL_SECONDS = 3
 VIDEO_EXTS = {".avi", ".mp4", ".mov", ".mkv", ".mpeg"}

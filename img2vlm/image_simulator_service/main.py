@@ -23,20 +23,29 @@ class DatasetImageProducer:
         await self._s3_service.ensure_bucket()
         await self._kafka_service.start()
         if not self._dataset_dir.exists():
-            raise RuntimeError(f"Dataset directory does not exist: {self._dataset_dir}")
+            logger.warning("Dataset directory does not exist yet: %s", self._dataset_dir)
+            return
         if not self._dataset_dir.is_dir():
-            raise RuntimeError(f"Dataset path is not a directory: {self._dataset_dir}")
+            logger.warning("Dataset path is not a directory: %s", self._dataset_dir)
+            return
 
     async def produce_forever(self) -> None:
-        images = sorted(
-            path
-            for pattern in ("*.jpg", "*.jpeg", "*.png", "*.webp")
-            for path in self._dataset_dir.glob(pattern)
-        )
-        if not images:
-            raise RuntimeError(f"No images found in {self._dataset_dir}")
-
         while True:
+            if not self._dataset_dir.exists() or not self._dataset_dir.is_dir():
+                logger.warning("Waiting for dataset directory: %s", self._dataset_dir)
+                await asyncio.sleep(max(1, settings.simulator_interval_seconds))
+                continue
+
+            images = sorted(
+                path
+                for pattern in ("*.jpg", "*.jpeg", "*.png", "*.webp")
+                for path in self._dataset_dir.glob(pattern)
+            )
+            if not images:
+                logger.warning("No images found in %s. Waiting...", self._dataset_dir)
+                await asyncio.sleep(max(1, settings.simulator_interval_seconds))
+                continue
+
             for image_path in images:
                 await self._publish_image(image_path)
                 logger.info("Published %s to topic %s", image_path.name, settings.kafka_input_topic)

@@ -1,6 +1,7 @@
 import json
 import uuid
-from typing import Any, Dict, List
+import asyncio
+from typing import Any, Dict, List, Protocol, runtime_checkable
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -17,6 +18,14 @@ from agent.llm.embeddings import get_embeddings
 llm = get_llm()
 emb = get_embeddings()
 
+
+@runtime_checkable
+class Store(Protocol):
+    def search(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]: ...
+
+    async def asearch(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]: ...
+
+
 def get_last_user_text(messages: List[BaseMessage]) -> str:
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
@@ -25,6 +34,18 @@ def get_last_user_text(messages: List[BaseMessage]) -> str:
 
 
 def sanitize_parsed(parsed: Dict[str, Any], user_query: str) -> Dict[str, Any]:
+    intent = str(parsed.get("intent") or "search").strip().lower()
+    if intent not in {"chat", "search"}:
+        intent = "search"
+
+    if intent == "chat":
+        return {
+            "intent": "chat",
+            "text_query": "",
+            "embedding_text": "",
+            "top_k": 0,
+        }
+
     text_query = str(parsed.get("text_query") or user_query).strip()
     embedding_text = str(parsed.get("embedding_text") or text_query).strip()
     try:
@@ -32,7 +53,13 @@ def sanitize_parsed(parsed: Dict[str, Any], user_query: str) -> Dict[str, Any]:
     except Exception:
         top_k = 5
     top_k = max(1, min(top_k, 20))
-    return {"text_query": text_query, "embedding_text": embedding_text, "top_k": top_k}
+
+    return {
+        "intent": "search",
+        "text_query": text_query,
+        "embedding_text": embedding_text,
+        "top_k": top_k,
+    }
 
 def extract_json(text: str) -> Dict[str, Any]:
     text = text.strip()
@@ -42,23 +69,40 @@ def extract_json(text: str) -> Dict[str, Any]:
         raise json.JSONDecodeError("JSON object not found", text, 0)
     return json.loads(text[start:end + 1])
 
+def clean_user_text(text: str) -> str:
+    if not isinstance(text, str):
+        text = str(text)
+    text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
+    return text.strip()
 
-def parse_query_node(state: AgentState) -> AgentState:
+def route_after_parse(state: AgentState) -> str:
+    if state.get("error"):
+        return "answer"
+
+    parsed = state.get("parsed") or {}
+    intent = parsed.get("intent", "search")
+    if intent == "chat":
+        return "answer"
+    return "embed"
+
+
+async def parse_query_node(state: AgentState) -> AgentState:
     try:
-        user_query = get_last_user_text(state["messages"])
+        user_query = clean_user_text(get_last_user_text(state["messages"]))
 
-        response = llm.invoke([
+        response = await llm.ainvoke([
             SystemMessage(content=PARSER_PROMPT),
             HumanMessage(content=user_query),
         ])
 
-        raw = response.content.strip()
+        raw = str(response.content).strip()
         data = extract_json(raw)
         parsed = sanitize_parsed(data, user_query=user_query)
 
         return {
             **state,
             "parsed": parsed,
+            "user_query": user_query,
         }
 
     except json.JSONDecodeError:
@@ -72,22 +116,30 @@ def parse_query_node(state: AgentState) -> AgentState:
             "error": f"JSON не прошёл валидацию: {e}",
         }
     except Exception as e:
+        # Some exceptions may contain unpaired surrogates; keep error message printable.
+        safe = (repr(e)).encode("utf-8", "backslashreplace").decode("utf-8", "strict")
         return {
             **state,
-            "error": f"Ошибка parse_query_node: {e}",
+            "error": f"Ошибка parse_query_node: {safe}",
         }
 
 
-def embed_node(state: AgentState) -> AgentState:
+async def embed_node(state: AgentState) -> AgentState:
     if state.get("error"):
         return state
 
     parsed = state["parsed"]
-    vec = emb.embed_query(parsed["embedding_text"])
+    embedding_text = parsed["embedding_text"]
+
+    aembed_query = getattr(emb, "aembed_query", None)
+    if callable(aembed_query):
+        vec = await aembed_query(embedding_text)
+    else:
+        vec = await asyncio.to_thread(emb.embed_query, embedding_text)
     return {**state, "embedding": vec}
 
 
-def agent_call_tool_node(state: AgentState) -> AgentState:
+async def agent_call_tool_node(state: AgentState) -> AgentState:
     """
     Создает AIMessage, который вызывает инструмент поиска с подготовленными аргументами.
     """
@@ -108,7 +160,7 @@ def agent_call_tool_node(state: AgentState) -> AgentState:
     return {**state, "messages": [*state.get("messages", []), msg]}
 
 
-def extract_results_node(state: AgentState) -> AgentState:
+async def extract_results_node(state: AgentState) -> AgentState:
     if state.get("error"):
         return state
 
@@ -128,41 +180,91 @@ def extract_results_node(state: AgentState) -> AgentState:
     return {**state, "search_results": results}
 
 
-def answer_node(state: AgentState) -> AgentState:
+async def answer_node(state: AgentState) -> AgentState:
     if state.get("error"):
         return {
             **state,
             "final_answer": state["error"],
         }
 
+    parsed = state.get("parsed") or {}
+    intent = parsed.get("intent", "search")
+    user_query = clean_user_text(state.get("user_query", ""))
+
+    if not user_query:
+        return {
+            **state,
+            "final_answer": "Не удалось получить текст пользовательского запроса.",
+        }
+
+    if intent == "chat":
+        response = await llm.ainvoke([
+            SystemMessage(content=(
+                "Ты помощник по поиску информации по изображениям с видеокамер. "
+                "Если пользователь здоровается или задает общий вопрос, отвечай дружелюбно и кратко. "
+                "Объясняй, что ты умеешь искать информацию по текстовым описаниям сцен на изображениях."
+            )),
+            HumanMessage(content=user_query),
+        ])
+        return {
+            **state,
+            "final_answer": str(response.content).strip(),
+        }
+
     results = state.get("search_results", [])
-    answer = f"Найдено результатов: {len(results)}."
-    if results:
-        lines: List[str] = []
-        for r in results[: min(5, len(results))]:
-            doc_id = r.get("document_id") or r.get("doc_id") or ""
-            desc = r.get("scene_description") or ""
-            fname = r.get("filename") or ""
-            chunk = " — ".join([x for x in [str(doc_id), str(fname), str(desc)] if x])
-            lines.append(chunk)
-        if lines:
-            answer += "\n" + "\n".join(lines)
+    if not results:
+        return {
+            **state,
+            "final_answer": "По найденным описаниям я не вижу подтверждения.",
+        }
+
+    context_lines = []
+    for i, r in enumerate(results[:5], 1):
+        doc_id = r.get("document_id") or ""
+        desc = r.get("scene_description") or ""
+        context_lines.append(f"{i}. [{doc_id}] {desc}")
+
+    prompt = f"""
+        Ответь на вопрос пользователя только на основе найденных описаний сцен.
+        Не выдумывай факты.
+        Если данных недостаточно, так и скажи.
+        Если ответ положительный, скажи это прямо и можешь сослаться на найденные кадры.
+
+        Вопрос пользователя:
+        {user_query}
+
+        Найденные описания:
+        {chr(10).join(context_lines)}
+        """.strip()
+
+    response = await llm.ainvoke([
+        SystemMessage(content="Ты помощник по анализу описаний сцен с камер. Отвечай кратко и по делу."),
+        HumanMessage(content=prompt),
+    ])
 
     return {
         **state,
-        "final_answer": answer,
+        "final_answer": str(response.content).strip(),
     }
 
 
 def build_graph(store: Store):
 
+    def route_after_agent(state: AgentState) -> str:
+        # If we already have an error, don't enter ToolNode (it requires an AIMessage).
+        return "answer" if state.get("error") else "tools"
+
     @tool("search_images")
-    def search_images(text_query: str, embedding: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_images(text_query: str, embedding: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
         """
         Поиск (полнотекстовый и векторный) по описанию сцены `scene_description`.
         Возвращает список документов (dict).
         """
-        return store.search({"text_query": text_query, "embedding": embedding, "top_k": top_k})
+        payload = {"text_query": text_query, "embedding": embedding, "top_k": top_k}
+        asearch = getattr(store, "asearch", None)
+        if callable(asearch):
+            return await asearch(payload)
+        return await asyncio.to_thread(store.search, payload)
 
     tools = [search_images]
     tool_node = ToolNode(tools)
@@ -177,9 +279,16 @@ def build_graph(store: Store):
     graph.add_node("answer", answer_node)
 
     graph.set_entry_point("parse_query")
-    graph.add_edge("parse_query", "embed")
+    graph.add_conditional_edges(
+        "parse_query",
+        route_after_parse,
+        {
+            "embed": "embed",
+            "answer": "answer",
+        },
+    )
     graph.add_edge("embed", "agent")
-    graph.add_edge("agent", "tools")
+    graph.add_conditional_edges("agent", route_after_agent, {"tools": "tools", "answer": "answer"})
     graph.add_edge("tools", "extract_results")
     graph.add_edge("extract_results", "answer")
     graph.add_edge("answer", END)

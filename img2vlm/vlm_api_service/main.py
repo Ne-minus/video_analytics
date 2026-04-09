@@ -93,11 +93,6 @@ async def describe_and_index(
             document_id=resolved_document_id,
             filename=file.filename or resolved_document_id,
             content_type=file.content_type,
-            people_analysis={
-                "people_count": analysis["people_count"],
-                "people_present": analysis["people_present"],
-                "people_summary": analysis["people_summary"],
-            },
             scene_description=analysis["scene_description"],
             metadata=metadata,
         )
@@ -110,11 +105,6 @@ async def describe_and_index(
     return IndexResponse(
         document_id=resolved_document_id,
         kafka_topic=settings.kafka_output_topic,
-        people_analysis={
-            "people_count": analysis["people_count"],
-            "people_present": analysis["people_present"],
-            "people_summary": analysis["people_summary"],
-        },
         scene_description=analysis["scene_description"],
         kafka_result="queued",
     )
