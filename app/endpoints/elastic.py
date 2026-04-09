@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, HTTPException
-from app.es_client import es_client, create_index_if_not_exists, delete_index, index_exists
+from app.services.es_client import es_client, create_index_if_not_exists, delete_index, index_exists
 from functools import wraps
 
 def handle_es_errors(func):
@@ -33,7 +33,7 @@ async def health():
 @elastic_router.delete("/delete_index", status_code=204)
 @handle_es_errors
 async def delete_index_endpoint():
-    """Удаляет индекс (осторожно, все данные будут потеряны)"""
+    """Удаляет индекс"""
     await delete_index()
 
 @elastic_router.get("/exists")
@@ -41,4 +41,4 @@ async def delete_index_endpoint():
 async def index_exists_endpoint():
     """Проверяет существование индекса"""
     exists = await index_exists()
-    return {"exists": exists}
+    return {"exists": bool(exists)}

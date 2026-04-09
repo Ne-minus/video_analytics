@@ -1,0 +1,8 @@
+fastapi==0.135.3
+uvicorn==0.44.0
+elasticsearch==8.16.0
+aiokafka==0.13.0
+pydantic-settings==2.13.1
+gigachat==0.2.0
+python-dotenv==1.2.2
+aiohttp

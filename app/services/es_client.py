@@ -1,8 +1,9 @@
 from elasticsearch import AsyncElasticsearch
 from app.core.config import settings
 
-# Глобальный клиент (создаётся один раз при старте приложения)
-es_client = AsyncElasticsearch(hosts=[settings.ES_HOST])
+es_client = AsyncElasticsearch(hosts=[settings.ES_HOST],
+                                verify_certs=False,      # отключает проверку SSL-сертификата
+                                ssl_show_warn=False)
 
 async def create_index_if_not_exists():
     """Создаёт индекс с заданными настройками и маппингом, если его нет."""

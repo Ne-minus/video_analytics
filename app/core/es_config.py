@@ -39,8 +39,8 @@ MAPPINGS = {
         },
         "dense_vector": {
             "type": "dense_vector",
-            "dims": 384,
-            "similarity": "cosine"
+            "dims": settings.ES_VECTOR_SIZE,
+            "similarity": "cosine",
         },
         "created_at": {"type": "date"},
         "updated_at": {"type": "date"}
