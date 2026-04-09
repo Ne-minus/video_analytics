@@ -10,25 +10,17 @@ class Settings(BaseSettings):
     gigachat_api_key: str = ""
     gigachat_base_url: str = "https://gigachat.devices.sberbank.ru/api/v1"
     gigachat_model: str = "GigaChat-2-Max"
-    gigachat_people_prompt: str = (
-        "Проанализируй изображение и верни строго JSON без markdown и без пояснений. "
-        "Формат ответа: "
-        '{"people_count": 0, '
-        '"people_present": false, '
-        '"people_summary": "краткое описание людей на изображении"}. '
-        "Если людей нет, укажи people_count=0, people_present=false и объясни это в people_summary. "
-        "Никаких дополнительных полей не добавляй."
-    )
     gigachat_scene_prompt: str = (
         "Опиши сцену на изображении на русском языке в 5-7 предложениях. "
-        "Сделай описание подробным, но без домыслов и выдуманных деталей. "
-        "Опиши людей, объекты, окружение, действия и общую обстановку."
-        "Также описывай цвет дверей, которые видишь на изображении, если они есть."
+        "Сначала оцени количество людей в кадре и обязательно явно укажи это в описании. "
+        "Если людей нет, прямо напиши, что людей в кадре не видно. "
+        "Дальше подробно опиши объекты, окружение, действия и общую обстановку без домыслов. "
+        "Если видны двери, укажи их цвет."
     )
 
     kafka_bootstrap_servers: str = "kafka:9092"
     kafka_input_topic: str = "imgs_to_process"
-    kafka_output_topic: str = "output"
+    kafka_output_topic: str = "img_descriptions"
     kafka_input_consumer_group: str = "vlm-image-processor"
     kafka_auto_offset_reset: str = "earliest"
     kafka_start_retries: int = 20

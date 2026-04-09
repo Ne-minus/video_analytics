@@ -1,15 +1,19 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
 
-from integrations.s3.client import S3StorageService
 from integrations.gigachat.client import VLMClient
+from integrations.s3.client import S3StorageService
 from shared.config import settings
+from shared.kafka_schemas import (
+    ImageContentType,
+    KafkaOutputMessage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +79,7 @@ class KafkaService:
             "s3_bucket": s3_bucket,
             "s3_key": s3_key,
             "metadata": metadata or {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         await self._producer.send_and_wait(settings.kafka_input_topic, payload)
 
@@ -85,23 +89,25 @@ class KafkaService:
         document_id: str,
         filename: str,
         content_type: str | None,
-        people_analysis: dict[str, Any],
         scene_description: str,
         metadata: dict[str, Any] | None,
         created_at: str | None = None,
     ) -> None:
-        payload = {
-            "document_id": document_id,
-            "filename": filename,
-            "content_type": content_type,
-            "people_analysis": people_analysis,
-            "scene_description": scene_description,
-            "metadata": metadata or {},
-            "created_at": created_at or datetime.now(timezone.utc).isoformat(),
-        }
+        payload = KafkaOutputMessage(
+            document_id=document_id,
+            filename=filename,
+            content_type=content_type,
+            scene_description=scene_description,
+            metadata=metadata or {},
+            created_at=created_at or datetime.now(UTC).isoformat(),
+        ).model_dump(mode="json")
         await self._producer.send_and_wait(settings.kafka_output_topic, payload)
 
-    async def consume_input_forever(self, vlm_client: VLMClient, s3_service: S3StorageService) -> None:
+    async def consume_input_forever(
+        self,
+        vlm_client: VLMClient,
+        s3_service: S3StorageService,
+    ) -> None:
         if self._input_consumer is None:
             raise RuntimeError("Kafka input consumer is disabled")
         try:
@@ -121,11 +127,6 @@ class KafkaService:
                         document_id=payload["document_id"],
                         filename=payload["filename"],
                         content_type=payload.get("content_type"),
-                        people_analysis={
-                            "people_count": analysis["people_count"],
-                            "people_present": analysis["people_present"],
-                            "people_summary": analysis["people_summary"],
-                        },
                         scene_description=analysis["scene_description"],
                         metadata=payload.get("metadata"),
                         created_at=payload.get("created_at"),
@@ -153,15 +154,16 @@ class KafkaService:
 
 def generate_document_id() -> str:
     import uuid
+
     return str(uuid.uuid4())
 
 
-def guess_mime_type(filename: str) -> str:
+def guess_mime_type(filename: str) -> ImageContentType:
     lower = filename.lower()
     if lower.endswith(".png"):
-        return "image/png"
+        return ImageContentType.PNG
     if lower.endswith(".webp"):
-        return "image/webp"
+        return ImageContentType.WEBP
     if lower.endswith(".gif"):
-        return "image/gif"
-    return "image/jpeg"
+        return ImageContentType.GIF
+    return ImageContentType.JPEG

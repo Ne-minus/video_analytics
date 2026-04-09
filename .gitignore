@@ -4,3 +4,4 @@ Avenue_Dataset.zip
 __pycache__/
 .DS_Store
 .env
+.pre-commit-cache/

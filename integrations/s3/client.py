@@ -33,7 +33,13 @@ class S3StorageService:
             except ClientError:
                 await client.create_bucket(Bucket=self._bucket_name)
 
-    async def upload_bytes(self, *, data: bytes, key: str, content_type: str | None) -> dict[str, str]:
+    async def upload_bytes(
+        self,
+        *,
+        data: bytes,
+        key: str,
+        content_type: str | None,
+    ) -> dict[str, str]:
         async with self.client() as client:
             await client.put_object(
                 Bucket=self._bucket_name,

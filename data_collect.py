@@ -1,5 +1,6 @@
-import cv2
 from pathlib import Path
+
+import cv2
 
 # Папка с видео
 INPUT_DIR = Path("Avenue_Dataset")  # замени при необходимости
@@ -50,9 +51,7 @@ def extract_frames(video_path: Path, output_dir: Path):
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    video_files = [
-        p for p in INPUT_DIR.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTS
-    ]
+    video_files = [p for p in INPUT_DIR.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTS]
 
     if not video_files:
         print(f"[INFO] Видео не найдены в {INPUT_DIR.resolve()}")

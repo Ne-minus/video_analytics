@@ -24,11 +24,6 @@
   "document_id": "8ec7d6c8-52d4-4b0f-9cc1-1d8f5e5de1f3",
   "filename": "example.jpg",
   "content_type": "image/jpeg",
-  "people_analysis": {
-    "people_count": 3,
-    "people_present": true,
-    "people_summary": "На изображении видны три человека на среднем плане."
-  },
   "scene_description": "На изображении городская сцена: три человека идут по улице рядом с припаркованными машинами и зданиями на заднем плане.",
   "metadata": {
     "source": "dataset-simulator"
@@ -49,7 +44,6 @@ cp .env.example .env
 
 - `GIGACHAT_API_KEY` — ключ для GigaChat
 - `GIGACHAT_MODEL` — модель GigaChat
-- `GIGACHAT_PEOPLE_PROMPT` — prompt для JSON с количеством людей
 - `GIGACHAT_SCENE_PROMPT` — prompt для общего описания сцены
 - `KAFKA_BOOTSTRAP_SERVERS` — адрес Kafka
 - `KAFKA_INPUT_TOPIC` — топик с входными изображениями
@@ -90,11 +84,6 @@ curl -X POST http://localhost:8000/describe-and-index \
   "status": "ok",
   "document_id": "8ec7d6c8-52d4-4b0f-9cc1-1d8f5e5de1f3",
   "kafka_topic": "output",
-  "people_analysis": {
-    "people_count": 3,
-    "people_present": true,
-    "people_summary": "На изображении видны три человека."
-  },
   "scene_description": "Подробное описание сцены...",
   "kafka_result": "queued"
 }
@@ -102,13 +91,9 @@ curl -X POST http://localhost:8000/describe-and-index \
 
 ## GigaChat
 
-Сервис работает только через GigaChat: сначала загружает изображение в хранилище GigaChat, затем делает два вызова `chat` с `attachments` для одной и той же картинки.
+Сервис работает только через GigaChat: сначала загружает изображение в хранилище GigaChat, затем делает один вызов `chat` с `attachments` для картинки.
 
-Первый вызов возвращает строго JSON:
-
-- `people_analysis` — структурированные данные о наличии и количестве людей
-
-Второй вызов возвращает:
+Результат:
 
 - `scene_description` — подробное текстовое описание сцены в 5-7 предложениях
 

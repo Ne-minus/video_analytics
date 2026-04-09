@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
@@ -31,7 +31,9 @@ async def lifespan(_: FastAPI):
 
     await s3_service.ensure_bucket()
     await kafka_service.start()
-    input_consumer_task = asyncio.create_task(kafka_service.consume_input_forever(vlm_client, s3_service))
+    input_consumer_task = asyncio.create_task(
+        kafka_service.consume_input_forever(vlm_client, s3_service)
+    )
     yield
     if input_consumer_task is not None:
         input_consumer_task.cancel()
@@ -63,9 +65,9 @@ async def healthcheck() -> HealthResponse:
 
 @app.post("/describe-and-index", response_model=IndexResponse)
 async def describe_and_index(
-    file: UploadFile = File(...),
-    document_id: str | None = Form(default=None),
-    metadata_json: str | None = Form(default=None),
+    file: Annotated[UploadFile, File(...)],
+    document_id: Annotated[str | None, Form()] = None,
+    metadata_json: Annotated[str | None, Form()] = None,
 ) -> IndexResponse:
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are supported")
@@ -93,11 +95,6 @@ async def describe_and_index(
             document_id=resolved_document_id,
             filename=file.filename or resolved_document_id,
             content_type=file.content_type,
-            people_analysis={
-                "people_count": analysis["people_count"],
-                "people_present": analysis["people_present"],
-                "people_summary": analysis["people_summary"],
-            },
             scene_description=analysis["scene_description"],
             metadata=metadata,
         )
@@ -110,11 +107,6 @@ async def describe_and_index(
     return IndexResponse(
         document_id=resolved_document_id,
         kafka_topic=settings.kafka_output_topic,
-        people_analysis={
-            "people_count": analysis["people_count"],
-            "people_present": analysis["people_present"],
-            "people_summary": analysis["people_summary"],
-        },
         scene_description=analysis["scene_description"],
         kafka_result="queued",
     )

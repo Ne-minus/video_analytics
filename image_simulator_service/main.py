@@ -1,7 +1,7 @@
 import asyncio
 import logging
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 from integrations.kafka.client import KafkaService, guess_mime_type
 from integrations.s3.client import S3StorageService
